@@ -7,7 +7,6 @@
 .DS_Store
 
 # Compiled project files
-lib/*
 bin/*
 
 # Compiled class file
