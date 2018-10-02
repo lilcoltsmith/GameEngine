@@ -10,72 +10,104 @@ import org.lwjgl.util.vector.Vector3f;
 import entities.Camera;
 import entities.Entity;
 import entities.Light;
-import models.RawModel;
+import entities.Player;
 import models.TexturedModel;
+import objConverter.ModelData;
+import objConverter.OBJFileLoader;
 import renderEngine.DisplayManager;
 import renderEngine.Loader;
 import renderEngine.MasterRenderer;
 import renderEngine.OBJLoader;
 import terrains.Terrain;
 import textures.ModelTexture;
+import textures.TerrainTexture;
+import textures.TerrainTexturePack;
 
 public class MainGameLoop {
 	public static void main(String[] args) {
 		DisplayManager.createDisplay();
+		MasterRenderer renderer = new MasterRenderer();
 		Random random = new Random();
 		
 		//LOADER
 		Loader loader = new Loader();
 		
 		//ENVIRONMENT
-		Light light = new Light(new Vector3f(0, 1000, -20), new Vector3f(1, 1, 1));
-		Camera camera = new Camera();
-		
-		//DRAGON MODEL
-		RawModel playerModel = OBJLoader.loadObjModel("dragon/dragon", loader);
-		TexturedModel texturedPlayerModel = new TexturedModel(playerModel, new ModelTexture(loader.loadTexture("dragon/red")));
-		ModelTexture playerTexture = texturedPlayerModel.getTexture();
-		playerTexture.setShineDamper(10);
-		playerTexture.setRefelctivity(1);
+		Light light = new Light(new Vector3f(1000, 1000, -20), new Vector3f(1, 1, 1));
 		
 		//TREE MODEL
-		RawModel treeModel = OBJLoader.loadObjModel("tree/tree", loader);
-		TexturedModel texturedTreeModel = new TexturedModel(treeModel, new ModelTexture(loader.loadTexture("dragon/plain")));
-		ModelTexture treeTexture = texturedTreeModel.getTexture();
-		treeTexture.setShineDamper(10);
-		treeTexture.setRefelctivity(0);
+		ModelData treeData = OBJFileLoader.loadOBJ("example/tree");
+		TexturedModel tree = new TexturedModel(loader.loadToVAO(treeData.getVertices(), treeData.getTextureCoords(), 
+				treeData.getNormals(), treeData.getIndices()), new ModelTexture(loader.loadTexture("example/tree")));
+
+		//GRASS MODEL
+		ModelData grassData = OBJFileLoader.loadOBJ("example/grassModel");
+		TexturedModel grass = new TexturedModel(loader.loadToVAO(grassData.getVertices(), grassData.getTextureCoords(), 
+				grassData.getNormals(), grassData.getIndices()), new ModelTexture(loader.loadTexture("example/flower")));
+		grass.getTexture().setHasTransparency(true);
+		grass.getTexture().setUseFakeLighting(true);
+		
+		//FERN MODEL
+		ModelData fernData = OBJFileLoader.loadOBJ("example/fern");
+		TexturedModel fern = new TexturedModel(loader.loadToVAO(fernData.getVertices(), fernData.getTextureCoords(), 
+				fernData.getNormals(), fernData.getIndices()), new ModelTexture(loader.loadTexture("example/fern")));
+		fern.getTexture().setHasTransparency(true);
 		
 		//ENTITIES
-		Entity entity = new Entity(texturedPlayerModel, new Vector3f(0, 1, -25), 0, 0, 0, 1);
-		List<Entity> trees = new ArrayList<Entity>();
-		for(int i = 0; i < 200; i++) {
-			float x = random.nextFloat() * (800f);
-			float z = random.nextFloat() * (800f);
-			trees.add(new Entity(texturedTreeModel, new Vector3f(x, 1, -z), 0, 0, 0, 0.25f));
+		List<Entity> entities = new ArrayList<Entity>();
+		for(int i = 0; i < 800; i++) {
+			//trees
+			entities.add(new Entity(tree, new Vector3f(random.nextFloat() * (800f), 0, 
+					-(random.nextFloat() * (800f))), 0, 0, 0, 3));
+			entities.add(new Entity(tree, new Vector3f(-random.nextFloat() * (800f), 0, 
+					-random.nextFloat() * (800f)), 0, 0, 0, 3));
+			//grass
+			entities.add(new Entity(grass, new Vector3f(random.nextFloat() * (800f), 0, 
+					-(random.nextFloat() * (800f))), 0, 0, 0, 1));
+			entities.add(new Entity(grass, new Vector3f(-random.nextFloat() * (800f), 0, 
+					-random.nextFloat() * (800f)), 0, 0, 0, 1));
+			//fern
+			entities.add(new Entity(fern, new Vector3f(random.nextFloat() * (800f), 0, 
+					-(random.nextFloat() * (800f))), 0, 0, 0, 0.6f));
+			entities.add(new Entity(fern, new Vector3f(-random.nextFloat() * (800f), 0, 
+					-random.nextFloat() * (800f)), 0, 0, 0, 0.6f));
+
 		}
 		
-		for(int i = 0; i < 200; i++) {
-			float x = random.nextFloat() * (800f);
-			float z = random.nextFloat() * (800f);
-			trees.add(new Entity(texturedTreeModel, new Vector3f(-x, 1, -z), 0, 0, 0, 0.25f));
-		}
+		//TERRAIN TEXTURE STUFF
+		TerrainTexture backgroundTexture = new TerrainTexture(loader.loadTexture("example/grassy2"));
+		TerrainTexture rTexture = new TerrainTexture(loader.loadTexture("example/dirt"));
+		TerrainTexture gTexture = new TerrainTexture(loader.loadTexture("example/pinkFlowers"));
+		TerrainTexture bTexture = new TerrainTexture(loader.loadTexture("example/path"));
 		
-		Terrain terrain = new Terrain(-1, -1, loader, new ModelTexture(loader.loadTexture("grass")));
-		Terrain terrain2 = new Terrain(0, -1, loader, new ModelTexture(loader.loadTexture("grass")));
+		TerrainTexturePack texturePack = new TerrainTexturePack(backgroundTexture, rTexture, 
+				gTexture, bTexture);
+		TerrainTexture blendMap = new TerrainTexture(loader.loadTexture("example/blendMap"));
 		
-		MasterRenderer renderer = new MasterRenderer();
+		Terrain terrain = new Terrain(-1, -1, loader, texturePack, blendMap);
+		Terrain terrain2 = new Terrain(0, -1, loader, texturePack, blendMap);
+		
+		//PLAYER
+		TexturedModel playerModel = new TexturedModel(OBJLoader.loadObjModel("example/person", loader), 
+				new ModelTexture(loader.loadTexture("example/playerTexture")));
+		Player player = new Player(playerModel, new Vector3f(100, 0, -50), 0, 0, 0, 0.25f);
+
+		//CAMERA
+		Camera camera = new Camera(player);
+
 		
 		while(!Display.isCloseRequested()) {
-			entity.increaseRotation(0,0.5f,0);
 			camera.move();
+			
+			player.move();
+			renderer.processEntity(player);
+			
 			renderer.processTerrain(terrain);
 			renderer.processTerrain(terrain2);
-			renderer.processEntity(entity);
-			for(Entity tree : trees) {
-				renderer.processEntity(tree);
+			for(Entity e : entities) {
+				renderer.processEntity(e);
 			}
 			renderer.render(light, camera);
-			//update display
 			DisplayManager.updateDisplay();
 		}
 		renderer.cleanUp();
